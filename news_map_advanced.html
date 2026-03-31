@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ Gujarat NewsCore - Professional News Dashboard</title>
+    
+    <!-- Leaflet Map Library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <!-- Font Awesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Light Mode Tokens */
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --accent: #ef4444;
+            --bg-body: #f8fafc;
+            --bg-container: #ffffff;
+            --bg-sidebar: #ffffff;
+            --bg-toolbar: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --card-bg: #ffffff;
+            --nav-height: 64px;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Mode Tokens */
+            --primary: #818cf8;
+            --primary-light: #a5b4fc;
+            --primary-dark: #6366f1;
+            --accent: #f87171;
+            --bg-body: #020617;
+            --bg-container: #0f172a;
+            --bg-sidebar: #0f172a;
+            --bg-toolbar: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #1e293b;
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            --card-bg: #1e293b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.3s ease;
+        }
+
+        /* Layout Structure */
+        .app-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* Tickers */
+        .ticker-container {
+            background: var(--primary);
+            color: white;
+            padding: 6px 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            z-index: 100;
+        }
+
+        .ticker-move {
+            display: inline-block;
+            animation: ticker-anim 30s linear infinite;
+        }
+
+        @keyframes ticker-anim {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Header */
+        header {
+            height: var(--nav-height);
+            background: var(--bg-container);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 90;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            font-size: 20px;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+
+        .logo span { color: var(--text-main); font-weight: 500; font-size: 16px; }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Sidebar */
+ /* Sidebar */
+        .sidebar {
+            border-left: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            overflow: hidden; /* Nayo badlav: Aa container ne bahar jata rokse */
+        }
+
+        .sidebar-header {
+            padding: 15px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h2 { font-size: 16px; font-weight: 600; }
+
+        .news-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            min-height: 0; /* Nayo badlav: Aa magic line thi scroll chalu thai jase! */
+        }
+
+        /* Pro UI mate Modern Scrollbar (Aa nava CSS add karo) */
+        .news-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .news-container::-webkit-scrollbar-track {
+            background: #f8fafc;
+        }
+        .news-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .news-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        .sidebar-header h2 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+        .sidebar-header p { font-size: 12px; color: var(--text-muted); }
+
+        .news-feed {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--bg-sidebar);
+        }
+
+        /* News Cards */
+        .news-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            animation: cardFadeIn 0.4s ease-out backwards;
+            box-shadow: var(--card-shadow);
+        }
+
+        @keyframes cardFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .news-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary);
+            box-shadow: 0 12px 20px -10px rgba(99, 102, 241, 0.2);
+        }
+
+        .news-card h3 {
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.5;
+            color: var(--text-main);
+            margin-bottom: 12px;
+        }
+
+        .news-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .source-pill {
+            background: var(--bg-body);
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Search & Toolbar */
+        .toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 440px;
+            z-index: 40;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-box {
+            flex: 1;
+            background: var(--bg-container);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            max-width: 500px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            padding: 12px;
+            width: 100%;
+            outline: none;
+            color: var(--text-main);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .search-box i { color: var(--text-muted); }
+
+        .action-btn {
+            background: var(--bg-container);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--card-shadow);
+            transition: 0.2s;
+        }
+
+        .action-btn:hover { background: var(--bg-toolbar); color: var(--primary); }
+
+        /* Custom Markers */
+        .custom-marker {
+            width: 20px; height: 20px;
+            background: var(--primary);
+            border: 4px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
+            position: relative;
+        }
+
+        .custom-marker::before {
+            content: '';
+            position: absolute; top: -15px; left: -15px; right: -15px; bottom: -15px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.4); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        .marker-active .custom-marker {
+            background: var(--accent);
+            border-color: #fff;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+            transform: scale(1.3);
+        }
+
+        .marker-active .custom-marker::before { border-color: var(--accent); }
+
+        /* Theme Toggle */
+        .theme-switch {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-container);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+        }
+
+        /* Mobile Adjustments */
+        .mobile-menu-btn { display: none; }
+
+        @media (max-width: 1024px) {
+            .main-content { grid-template-columns: 1fr; }
+            .sidebar {
+                position: absolute;
+                right: 0; top: 0; bottom: 0;
+                width: 100%;
+                transform: translateX(100%);
+                z-index: 1000;
+            }
+            .sidebar.open { transform: translateX(0); }
+            .toolbar { right: 20px; }
+            .mobile-menu-btn { display: flex; }
+        }
+
+        /* Footer Disclaimer */
+        .disclaimer-footer {
+            background: var(--bg-toolbar);
+            border-top: 1px solid var(--border-color);
+            padding: 8px 0;
+            overflow: hidden;
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .disclaimer-scroll {
+            display: inline-block;
+            animation: disclaimer-anim 40s linear infinite;
+            padding-left: 100%;
+        }
+
+        @keyframes disclaimer-anim {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Skeleton */
+        .skeleton {
+            background: var(--bg-toolbar);
+            height: 100px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+    <div class="app-wrapper">
+        <!-- Top News Ticker -->
+        <div class="ticker-container">
+            <div class="ticker-move" id="topTicker">
+                LATEST UPDATES: Selecting a district on the map will provide regional news headlines in real-time. Stay informed with Gujarat NewsCore.
+            </div>
+        </div>
+
+        <header>
+            <div class="logo">
+                <i class="fas fa-tower-broadcast"></i> NewsCore <span>Gujarat</span>
+            </div>
+            <div class="header-controls">
+                <div class="live-badge" style="background: rgba(239,68,68,0.1); color: var(--accent); padding: 4px 12px; border-radius: 20px; font-weight: 800; font-size: 11px; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(239,68,68,0.2);">
+                    <div class="blink"></div> LIVE HUB
+                </div>
+                <button class="theme-switch" onclick="toggleTheme()" id="themeBtn">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="action-btn mobile-menu-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-newspaper"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="toolbar">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search districts or topics..." onkeyup="handleSearch(event)">
+                </div>
+                <button class="action-btn" onclick="refreshData()" title="Refresh">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+
+            <div id="map"></div>
+
+            <aside class="sidebar" id="newsSidebar">
+                <div class="sidebar-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <h2 id="currentLocation">Gujarat News</h2>
+                        <span id="newsCount" style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 800;">0</span>
+                    </div>
+                    <p id="currentSubtitle">Select a district from the map</p>
+                </div>
+                <div class="news-feed" id="newsList">
+                    <!-- Skeletons loading -->
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Disclaimer Footer -->
+        <div class="disclaimer-footer">
+            <div class="disclaimer-scroll">
+                Disclaimer: All news headlines are aggregated from public search engines. We do not own or modify the original content. All copyrights belong to their respective publishers. &nbsp;&nbsp;&nbsp;&nbsp; • &nbsp;&nbsp;&nbsp;&nbsp;
+                Disclaimer: All news headlines are aggregated from public search engines. We do not own or modify the original content. All copyrights belong to their respective publishers.
+            </div>
+        </div>
+    </div>
+
+    <script>
+         const API_BASE_URL = '/api';
+        
+        const gujaratDistricts = {
+            'Ahmedabad': { lat: 23.0225, lng: 72.5714 },
+            'Amreli': { lat: 21.6032, lng: 71.2221 },
+            'Anand': { lat: 22.5560, lng: 72.9510 },
+            'Aravalli': { lat: 23.4633, lng: 73.3000 },
+            'Banaskantha': { lat: 24.1724, lng: 72.4346 },
+            'Bharuch': { lat: 21.7051, lng: 72.9959 },
+            'Bhavnagar': { lat: 21.7645, lng: 72.1519 },
+            'Botad': { lat: 22.1709, lng: 71.6684 },
+            'Chhota Udaipur': { lat: 22.3015, lng: 74.0153 },
+            'Dahod': { lat: 22.8335, lng: 74.2562 },
+            'Dang': { lat: 20.7582, lng: 73.6811 },
+            'Devbhoomi Dwarka': { lat: 22.2442, lng: 68.9685 },
+            'Gandhinagar': { lat: 23.2156, lng: 72.6369 },
+            'Gir Somnath': { lat: 20.9048, lng: 70.3692 },
+            'Jamnagar': { lat: 22.4707, lng: 70.0577 },
+            'Junagadh': { lat: 21.5222, lng: 70.4579 },
+            'Kheda': { lat: 22.6916, lng: 72.8634 },
+            'Kutch': { lat: 23.2420, lng: 69.6669 },
+            'Mahisagar': { lat: 23.1360, lng: 73.6144 },
+            'Mehsana': { lat: 23.5880, lng: 72.3693 },
+            'Morbi': { lat: 22.8120, lng: 70.8320 },
+            'Narmada': { lat: 21.8687, lng: 73.5015 },
+            'Navsari': { lat: 20.9467, lng: 72.9520 },
+            'Panchmahal': { lat: 22.7788, lng: 73.6143 },
+            'Patan': { lat: 23.8493, lng: 72.1266 },
+            'Porbandar': { lat: 21.6417, lng: 69.6293 },
+            'Rajkot': { lat: 22.3039, lng: 70.8022 },
+            'Sabarkantha': { lat: 23.5979, lng: 72.9697 },
+            'Surat': { lat: 21.1702, lng: 72.8311 },
+            'Surendranagar': { lat: 22.7236, lng: 71.6385 },
+            'Tapi': { lat: 21.1150, lng: 73.3980 },
+            'Vadodara': { lat: 22.3072, lng: 73.1812 },
+            'Valsad': { lat: 20.5992, lng: 72.9342 }
+        };
+
+        let map;
+        let markers = {};
+        let activeDistrict = 'Ahmedabad';
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([22.5, 71.5], 7);
+            
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            const voyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+
+            Object.keys(gujaratDistricts).forEach(name => {
+                const loc = gujaratDistricts[name];
+                const icon = L.divIcon({
+                    className: 'marker-container',
+                    html: `<div class="custom-marker" id="m-${name}"></div>`,
+                    iconSize: [20, 20]
+                });
+
+                const marker = L.marker([loc.lat, loc.lng], { icon: icon });
+                marker.on('click', () => handleDistrictSelect(name, loc));
+                markers[name] = marker;
+                marker.addTo(map);
+            });
+
+            loadInitial();
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById('themeBtn');
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            
+            body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            btn.innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+            
+            // Map tile update
+            if (!isDark) {
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+            } else {
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('newsSidebar').classList.toggle('open');
+        }
+
+        function showLoading() {
+            document.getElementById('newsList').innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
+        }
+
+        async function loadInitial() {
+            handleDistrictSelect('Ahmedabad', gujaratDistricts['Ahmedabad']);
+        }
+
+        async function handleDistrictSelect(name, loc) {
+            activeDistrict = name;
+            document.getElementById('currentLocation').textContent = name;
+            document.getElementById('currentSubtitle').textContent = `Headlines for ${name} District`;
+            
+            // Update Markers
+            Object.keys(markers).forEach(k => markers[k].getElement()?.classList.remove('marker-active'));
+            markers[name].getElement()?.classList.add('marker-active');
+
+            showLoading();
+            if (window.innerWidth <= 1024) toggleSidebar(); // Auto open on mobile
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/news/${name}`);
+                const data = await res.json();
+                renderNews(data.news || [], name);
+                
+                // Update Ticker
+                if (data.news && data.news.length > 0) {
+                    document.getElementById('topTicker').textContent = `LATEST FROM ${name.toUpperCase()}: ${data.news[0].title} — `;
+                }
+            } catch (err) {
+                document.getElementById('newsList').innerHTML = `<div style="text-align:center; padding:40px; color:var(--accent);"><i class="fas fa-plug fa-2x"></i><p>API Offline</p></div>`;
+            }
+            map.flyTo([loc.lat, loc.lng], 10, { duration: 1.2 });
+        }
+
+        function renderNews(news, name) {
+            const container = document.getElementById('newsList');
+            document.getElementById('newsCount').textContent = news.length;
+
+            if (news.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:60px 20px; color:var(--text-muted);"><i class="far fa-folder-open fa-3x" style="opacity:0.2; margin-bottom:15px;"></i><p>No headlines found for ${name}.</p></div>`;
+                return;
+            }
+
+            container.innerHTML = news.map((item, idx) => `
+                <div class="news-card" onclick="window.open('${item.url}', '_blank')" style="animation-delay: ${idx * 0.08}s">
+                    <div class="news-footer" style="margin-bottom:8px;">
+                        <span class="source-pill">${item.source}</span>
+                    </div>
+                    <h3>${item.title}</h3>
+                    <div class="news-footer">
+                        <span><i class="far fa-calendar-alt"></i> ${item.time}</span>
+                        <span style="color:var(--primary)">Details <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                </div>`).join('');
+        }
+
+        function handleSearch(event) {
+            if (event.key === "Enter") {
+                const q = document.getElementById('searchInput').value.trim();
+                if (!q) return;
+                showLoading();
+                fetch(`${API_BASE_URL}/search?query=${encodeURIComponent(q)}`)
+                    .then(res => res.json())
+                    .then(data => renderNews(data.news || [], "Search Results"));
+            }
+        }
+
+        function refreshData() {
+            handleDistrictSelect(activeDistrict, gujaratDistricts[activeDistrict]);
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
